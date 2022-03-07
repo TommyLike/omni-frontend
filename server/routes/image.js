@@ -82,14 +82,14 @@ router.get('/:id', (req, res) => {
                 } else if (response.body.status.failed >= backoffLimit) {
                     console.log(`job ${req.params.id} failed`)
                     res.send({
-                        "Name": req.params.id,
+                        "name": req.params.id,
                         "status": JOB_STATUS_FAILED,
                         "startTime": response.body.status.startTime,
                         "completionTime": response.body.status.completionTime
                     })
                 } else if (response.body.status.succeeded === undefined || response.body.status.failed === undefined) {
                     res.send({
-                        "Name": req.params.id,
+                        "name": req.params.id,
                         "status": JOB_STATUS_RUNNING,
                         "startTime": response.body.status.startTime
                     })
@@ -141,7 +141,7 @@ router.post('/', body("version").notEmpty(),
             (response) => {
                 console.log('Created Job');
                 res.send({
-                    "Name": response.body.metadata.name
+                    "name": response.body.metadata.name
                 })
             },
             (err) => {

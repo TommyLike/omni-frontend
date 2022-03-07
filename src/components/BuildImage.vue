@@ -37,19 +37,63 @@
             v-model="defaultPackages"
             :items="availablePackages"
         ></v-select>
+        <h2>ImageType</h2>
+        <v-select
+            item-text="name"
+            item-value="name"
+            v-model="defaultImageType"
+            :items="availableImageType"
+        ></v-select>
         <v-btn
             color="primary"
             elevation="18"
             rounded
+            :disabled="jobRunning"
             x-large
+            v-on:click="submitJob"
         >Start Build</v-btn>
+        <v-alert
+            :value="alert"
+            dark
+            border="left"
+            type="error"
+            transition="slide-y-transition"
+        >
+          {{ errorMessage }}
+        </v-alert>
+      </v-col>
+      <v-col cols="6">
+        <v-card
+            class="pa-0"
+            tile
+        >
+          <v-card-title>Job Name</v-card-title>
+          <v-card-subtitle> {{ currentJobName }}</v-card-subtitle>
+        </v-card>
+      </v-col>
+      <v-col cols="4">
+        <v-card
+            class="pa-0"
+            tile
+        >
+          <v-card-title>Start Time</v-card-title>
+          <v-card-subtitle>{{currentJobStartTime}}</v-card-subtitle>
+        </v-card>
+      </v-col>
+      <v-col cols="2">
+        <v-card
+            class="pa-0"
+            tile
+        >
+          <v-card-title>Job Status</v-card-title>
+          <v-card-subtitle> {{ currentJobStatus}} </v-card-subtitle>
+        </v-card>
       </v-col>
       <v-col
-          class="mb-5"
+          class="mb-0"
           cols="12"
       >
         <h3>Detail</h3>
-        <br>
         <v-textarea
             rows="40"
             cols="100"
@@ -67,10 +111,82 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: 'BuildImage',
-
+  mounted: function () {
+    if(alert){
+      this.hideAlert();
+    }
+  },
+  methods: {
+    hideAlert: function () {
+      console.log('Hide')
+      window.setInterval(() => {
+        this.alert = false;
+        this.errorMessage = ""
+      }, 3000)
+    },
+    submitJob: function() {
+      console.log(this.defaultVersionSelected.name + this.defaultPackages.name, this.defaultImageType.name)
+      let requestParameters = {
+        version: this.defaultVersionSelected.name,
+        packages: this.defaultPackages.name,
+        buildType: this.defaultImageType.name
+      }
+      axios.post("/api/images", requestParameters).then(response => {
+        this.currentJobName = response.data.name
+        this.jobRunning = true
+        this.queryJobStatus = setInterval(function (context){
+            axios.get(`/api/images/${context.currentJobName}`).then(response => {
+              console.log(response.data)
+              context.currentJobStatus = response.data.status
+              context.currentJobStartTime = response.data.startTime
+              if (context.currentJobStatus !== "running") {
+                if (context.queryJobStatus) {
+                  context.jobRunning = false
+                  clearInterval(context.queryJobStatus)
+                }
+              }
+            }).catch(error => {
+              console.log("query job status errored")
+              context.errorMessage = error.message
+              context.alert = true
+            })
+        }, 5000, this)
+      }).catch(error => {
+            this.errorMessage = error.message
+            this.jobRunning = false
+            this.alert = true
+            if (this.queryJobStatus) {
+              clearInterval(this.queryJobStatus)
+            }
+      })
+    }
+  },
   data: () => ({
+    jobRunning: false,
+    queryJobStatus: null,
+    currentJobName: " ",
+    currentJobStatus: " ",
+    currentJobStartTime: " ",
+    errorMessage: "",
+    alert: false,
+    defaultImageType: {
+      name: "installer-iso"
+    },
+    availableImageType: [
+      {
+        name: "installer-iso"
+      },
+      {
+        name: "livecd-iso"
+      },
+      {
+        name: "vhd"
+      }
+    ],
     defaultPackages: {
       name: "openEuler-minimal"
     },
